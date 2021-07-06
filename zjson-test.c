@@ -6,13 +6,13 @@
 #define TESTDIR "tests/"
 
 struct test { const char *file; } tests[] = {
-	{ TESTDIR "lil.json" }
 #if 0
-,	{ TESTDIR "not.json" }
-,	{ TESTDIR "singles.json" }
-,	{ TESTDIR "twitter.json" }
+	{ TESTDIR "lil.json" },
+ 	{ TESTDIR "not.json" },
+ 	{ TESTDIR "singles.json" },
 #endif
-,	{ NULL }
+ 	{ TESTDIR "twitter.json" },
+ 	{ NULL }
 };
 
 
@@ -40,17 +40,21 @@ int main (int argc, char *argv[]) {
 		}
 
 		write( 2, base, sb.st_size );
+getchar();
 
 		//Encode (and decode?)
 		if ( !( tt = zjson_encode( base, sb.st_size, err, sizeof( err ) ) ) ) {
 			fprintf( stderr, "encode failed: %s\n", err );
 			continue;
 		}
-		
+	
+		//Dump	
+		lt_kfdump( tt, 2 );
+
 		//Make sure you catch failures too
-		//Close the file
-		close( fd );
-		free( base );
+
+		//Destroy everything
+		lt_free( tt ), free( tt ), free( base ), close( fd );
 	}
 	return 0;
 }

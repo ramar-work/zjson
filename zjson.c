@@ -67,7 +67,8 @@ zTable * zjson_encode ( const char *str, int len, char *err, int errlen ) {
 	}
 
 	//Add a root key
-	lt_addtextkey( tt, "data" );
+	lt_addtextkey( tt, "root" );
+	//lt_descend( tt );
 
 	for ( int i = 0; memwalk( &w, (unsigned char *)str, (unsigned char *)tokens, len, strlen( tokens ) ); ) {
 		if ( w.chr == '"' ) {
@@ -75,46 +76,69 @@ zTable * zjson_encode ( const char *str, int len, char *err, int errlen ) {
 			if ( ( d->text = !d->text ) == 1 )
 				d->val = w.ptr, d->size = 0;
 			else {
-				d->size = w.size - 1;
-				write( 2, d->val, d->size );  write( 2, "\n", 1 );
+				d->size += w.size - 1;
 				char buf[ d->size + 1 ];
 				memset( buf, 0, d->size + 1 );
-				memcpy( buf, d->val, d->size );
 				//Left or right side...
-				if ( !d->isval ) 
+				if ( !d->isval ) {
+					memcpy( buf, d->val, d->size );
 					lt_addtextkey( tt, buf );
+				}
 				else {
+					memcpy( buf, d->val, d->size - 2 );
 					lt_addtextvalue( tt, buf );
 					lt_finalize( tt );
 					d->isval = 0;
+					d->size = 0;
 				}
 			}
 		}
 
 		//Need to check if we are within a string...
-		if ( !d->text ) {
-			if ( w.chr == '{' ) {
-				++d, ++i, lt_descend( tt );
-			}
-			else if ( w.chr == '[' ) {
-				++d, ++i, lt_descend( tt ), d->type = 1;
-			}
-			else if ( w.chr == ':' ) {
+		if ( d->text && d->isval )
+			d->size += w.size;
+		else {
+			if ( w.chr == ':' )
 				d->isval = 1;	
+			else if ( w.chr == '{' || w.chr == '[' ) {
+				++d, ++i, lt_descend( tt );
+				if ( w.chr == '[' ) {
+					d->type = 1, lt_addintkey( tt, d->index ), d->index++;
+				}
 			}
 			else if ( w.chr == ',' ) {
 				if ( d->type ) {
-					lt_addintkey( tt, ++d->index );
-				}	
+					lt_addintkey( tt, d->index ), d->index++;
+				}
+	
+				//Trim the value
+				int a = 0;
+				unsigned char *aa = zjson_trim( w.src, " \t\n\r", w.size, &a );
+#if 0
+fprintf( stderr, "Got a value that might not be a string. %d\n", a ); 
+write( 2, aa, a );
+getchar();
+#endif
+
+				if ( a > 1 ) {
+					char buf[ a ];
+					memset( buf, 0, a );
+					memcpy( buf, aa, a - 1 );
+					lt_addtextvalue( tt, buf );
+					lt_finalize( tt );
+				}
+				d->isval = 0, d->text  = 0;
 			}
-			else if ( w.chr == '}' ) {
-				--d, --i, lt_ascend( tt );	
-			}
-			else if ( w.chr == ']' ) {
-				--d, --i, lt_ascend( tt );	
+			else if ( w.chr == '}' || w.chr == ']' ) {
+				//if ( d != &depths[ 0 ] ) { 
+				if ( --i == -1 ) {
+					break;	
+				}
+				--d, d->isval = 0, d->size = 0, d->text = 0, lt_ascend( tt );
 			}
 		}
-#if 1
+#if 0
+//fprintf( stderr, "aindex %d, ", i );fprintf( stderr, "%p ?= %p\n", d, &depths[ 0 ] );
 fprintf( stderr, "tp: %p, tindex: %d, ", d, i );
 fprintf( stderr, "side: %s, ", !d->isval ? "L" : "R" );
 fprintf( stderr, "narray: %s, ", d->type ? "true" : "false" );
@@ -125,7 +149,6 @@ getchar();
 	}
 
 lt_lock( tt );
-lt_dump( tt );
 	return tt;
 }
 
