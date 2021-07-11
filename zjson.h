@@ -4,9 +4,20 @@
 #include <ztable.h>
 #include <zwalker.h>
 
+#ifndef ZJSON_H
+#define ZJSON_H
 
-#define JSON_MAX_DEPTH 100
+#ifndef ZJSON_MAX_DEPTH
+ #define ZJSON_MAX_DEPTH 100
+#endif
+ 
+#ifndef ZJSON_MAX_LENGTH
+ #define ZJSON_MAX_LENGTH 2048
+#endif
 
+zTable * zjson_decode ( const char *, int, char *, int );
+char * zjson_encode ( zTable *, char *, int ) ;
+int zjson_check ( const char *, int, char *, int );
+unsigned char *zjson_trim ( unsigned char *, char *, int , int * ) ;
 
-zTable * zjson_encode ( const char *, int, char *, int );
-char * zjson_decode ( const zTable * ); 
+#endif

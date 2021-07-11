@@ -6,21 +6,23 @@
 #define TESTDIR "tests/"
 
 struct test { const char *file; } tests[] = {
-#if 0
 	{ TESTDIR "lil.json" },
+#if 0
  	{ TESTDIR "not.json" },
  	{ TESTDIR "singles.json" },
-#endif
  	{ TESTDIR "twitter.json" },
+ 	{ TESTDIR "package.json" },
+#endif
  	{ NULL }
 };
 
 
 int main (int argc, char *argv[]) {
+
 	for ( struct test *t = tests; t->file; t++ ) {
 		int fd = 0;
 		struct stat sb;
-		char err[1024] = {0}, *base = NULL;
+		char err[1024] = {0}, *base = NULL, *enc = NULL;
 		zTable *tt = NULL;
 
 		//Open the file and string
@@ -39,22 +41,38 @@ int main (int argc, char *argv[]) {
 			continue;
 		}
 
-		write( 2, base, sb.st_size );
-getchar();
+		//write( 2, base, sb.st_size );
+		if ( zjson_check( base, sb.st_size, err, sizeof ( err ) ) ) 
+			fprintf( stderr, "JSON check passed!\n" );
+		else {
+			fprintf( stderr, "JSON check failed: %s\n", err ); 
+			continue;
+		}	
 
 		//Encode (and decode?)
-		if ( !( tt = zjson_encode( base, sb.st_size, err, sizeof( err ) ) ) ) {
+		if ( !( tt = zjson_decode( base, sb.st_size, err, sizeof( err ) ) ) ) {
+			fprintf( stderr, "decode failed: %s\n", err );
+			continue;
+		}
+
+	#if 0
+		//Dump	
+		lt_kfdump( tt, 2 );
+	#else
+		//Make sure you catch failures too
+		if ( !( enc = zjson_encode( tt, err, sizeof( err ) ) ) ) {
 			fprintf( stderr, "encode failed: %s\n", err );
 			continue;
 		}
 	
-		//Dump	
-		lt_kfdump( tt, 2 );
-
-		//Make sure you catch failures too
+		//...
+		fprintf( stderr, "JSON: %s\n", enc );	
+	#endif
 
 		//Destroy everything
-		lt_free( tt ), free( tt ), free( base ), close( fd );
+		free( enc );
+		lt_free( tt ), free( tt ); 
+		free( base ), close( fd );
 	}
 	return 0;
 }
